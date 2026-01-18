@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriSpace - UI Fixed</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+            z-index: 1;
+            background: #202020;
+        }
+
+        /* 面板樣式 */
+        .panel {
+            position: absolute;
+            top: 20px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            z-index: 1000;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            width: 320px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        h2 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            border-bottom: 2px solid #27ae60;
+            padding-bottom: 5px;
+            color: #2c3e50;
+        }
+
+        h3 {
+            margin: 15px 0 5px 0;
+            font-size: 14px;
+            color: #2c3e50;
+            border-left: 3px solid #27ae60;
+            padding-left: 5px;
+        }
+
+        /* 視覺增強開關 */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #bbdefb;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            margin-right: 10px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: #2196f3;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+        }
+
+        /* 輸入與按鈕 */
+        .input-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            align-items: center;
+        }
+
+        /* 單一輸入框樣式 */
+        .coord-input {
+            width: 240px;
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        /* 座標列表 */
+        #coord-list {
+            margin-bottom: 10px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+
+        .coord-row {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+
+        .row-num {
+            font-size: 12px;
+            color: #888;
+            width: 20px;
+            text-align: right;
+            margin-right: 5px;
+        }
+
+        /* 按鈕樣式 */
+        .btn-remove {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 5px 8px;
+            font-size: 12px;
+        }
+
+        .btn-remove:hover {
+            background: #c0392b;
+        }
+
+        .btn-add {
+            background: #fff;
+            border: 1px dashed #27ae60;
+            color: #27ae60;
+            width: 100%;
+            padding: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .btn-add:hover {
+            background: #e8f5e9;
+        }
+
+        button.action-btn {
+            padding: 8px;
+            border: none;
+            width: 100%;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 5px;
+            font-size: 13px;
+        }
+
+        .btn-primary {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #219150;
+        }
+
+        .btn-secondary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #2980b9;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .data-box {
+            margin-top: 15px;
+            padding: 10px;
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .area-text {
+            color: #d35400;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        /* 視覺濾鏡 */
+        .ai-enhanced-vision .leaflet-tile-pane {
+            filter: contrast(1.4) brightness(1.1) saturate(1.3) !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="panel">
+        <h2>AgriSpace</h2>
+
+        <div class="toggle-container">
+            <label class="switch">
+                <input type="checkbox" id="visionToggle" onchange="toggleVisionEnhance()">
+                <span class="slider"></span>
+            </label>
+            <span style="font-size:14px; font-weight:bold; color:#1565c0;">邊界視覺增強</span>
+        </div>
+
+        <h3>中心點定位</h3>
+        <div class="input-row">
+            <input type="text" id="centerInput" value="40.7831, -73.9654" class="coord-input" style="width:100%">
+        </div>
+        <button class="action-btn btn-primary" onclick="panToCenter()">定位至中心點</button>
+
+        <h3>輸入多邊形頂點</h3>
+        <div style="font-size: 11px; color: #666; margin-bottom: 5px;">格式: 緯度, 經度 (需用逗號分隔)</div>
+
+        <div id="coord-list">
+        </div>
+
+        <button class="btn-add" onclick="addCoordRow()">+ 新增座標點</button>
+        <button class="action-btn btn-secondary" onclick="drawPolygonFromInputs()">繪製多邊形</button>
+
+        <div class="data-box">
+            <div style="font-size:12px; color:#555;">圈選面積</div>
+            <span id="areaDisplay" class="area-text">0</span> m²
+        </div>
+
+        <div style="margin-top: 10px;">
+            <button class="action-btn btn-danger" onclick="clearAll()">清除所有標記</button>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
+
+    <script>
+        // --- 1. 初始化地圖 ---
+        var map = L.map('map').setView([40.7831, -73.9654], 14);
+
+        // --- 2. 定義圖層 ---
+        var esriSatLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19, attribution: 'Tiles &copy; Esri'
+        }).addTo(map);
+
+        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, attribution: '© OpenStreetMap'
+        });
+
+        // Copernicus ID (您的 ID)
+        var myInstanceID = "069b368e-daf8-4854-9f1b-d507bd7740ec";
+
+        var sentinelTrueColor = L.tileLayer.wms("https://sh.dataspace.copernicus.eu/ogc/wms/" + myInstanceID, {
+            layers: 'TRUE_COLOR', format: 'image/png', transparent: true, version: '1.3.0', attribution: 'Copernicus Sentinel-2'
+        });
+
+        var sentinelNDVI = L.tileLayer.wms("https://sh.dataspace.copernicus.eu/ogc/wms/" + myInstanceID, {
+            layers: 'VEGETATION_INDEX', format: 'image/png', transparent: true, version: '1.3.0', attribution: 'Copernicus NDVI'
+        });
+
+        // 🌟 修正點：將圖層控制器移到 "topleft" (左上角) 以避免與右側面板重疊
+        L.control.layers(
+            { "高清衛星圖 (Esri)": esriSatLayer, "一般地圖 (OSM)": osmLayer },
+            { "即時衛星 (True Color)": sentinelTrueColor, "作物健康 (NDVI)": sentinelNDVI },
+            { position: 'topleft' } // <--- 這裡修改位置
+        ).addTo(map);
+
+        // --- 3. 手動繪圖功能 (Leaflet Draw) ---
+        var drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        var drawControl = new L.Control.Draw({
+            draw: {
+                polyline: false, circle: false, marker: false, circlemarker: false, rectangle: true,
+                polygon: {
+                    allowIntersection: false,
+                    showArea: true,
+                    shapeOptions: { color: '#27ae60', weight: 2 }
+                }
+            },
+            edit: { featureGroup: drawnItems },
+            position: 'topleft' // 繪圖工具也保持在左側
+        });
+        map.addControl(drawControl);
+
+        map.on(L.Draw.Event.CREATED, function (e) {
+            clearAll();
+            var layer = e.layer;
+            drawnItems.addLayer(layer);
+            calculateArea(layer.toGeoJSON());
+        });
+
+        map.on(L.Draw.Event.DELETED, function () {
+            document.getElementById('areaDisplay').innerText = "0";
+        });
+
+        // --- 4. 功能函式 ---
+
+        function toggleVisionEnhance() {
+            var isEnabled = document.getElementById('visionToggle').checked;
+            var mapContainer = document.getElementById('map');
+            if (isEnabled) {
+                mapContainer.classList.add('ai-enhanced-vision');
+            } else {
+                mapContainer.classList.remove('ai-enhanced-vision');
+            }
+        }
+
+        // 預設資料：紐約中央公園的四個角落
+        var defaultCoords = [
+            "40.7681, -73.9815", // 西南 (Columbus Circle)
+            "40.8005, -73.9582", // 西北
+            "40.7968, -73.9491", // 東北
+            "40.7643, -73.9730"  // 東南
+        ];
+
+        window.onload = function () {
+            defaultCoords.forEach(function (val) {
+                addCoordRow(val);
+            });
+        };
+
+        function addCoordRow(value = '') {
+            var container = document.getElementById('coord-list');
+            var index = container.children.length + 1;
+
+            var div = document.createElement('div');
+            div.className = 'coord-row';
+            div.innerHTML = `
+                <span class="row-num">${index}.</span>
+                <input type="text" class="coord-input full-val" placeholder="緯度, 經度" value="${value}">
+                <button class="btn-remove" onclick="removeRow(this)">X</button>
+            `;
+            container.appendChild(div);
+            updateRowNumbers();
+        }
+
+        function removeRow(btn) {
+            var row = btn.parentNode;
+            row.parentNode.removeChild(row);
+            updateRowNumbers();
+        }
+
+        function updateRowNumbers() {
+            var rows = document.querySelectorAll('#coord-list .coord-row');
+            rows.forEach((row, idx) => {
+                row.querySelector('.row-num').innerText = (idx + 1) + ".";
+            });
+        }
+
+        function drawPolygonFromInputs() {
+            var inputs = document.querySelectorAll('.full-val');
+            var points = [];
+
+            for (var i = 0; i < inputs.length; i++) {
+                var raw = inputs[i].value;
+                if (!raw.trim()) continue;
+
+                var parts = raw.split(',');
+
+                if (parts.length !== 2) {
+                    alert("第 " + (i + 1) + " 行格式錯誤！需有逗號分隔 (Lat, Lng)。");
+                    return;
+                }
+
+                var lat = parseFloat(parts[0].trim());
+                var lng = parseFloat(parts[1].trim());
+
+                if (isNaN(lat) || isNaN(lng)) {
+                    alert("第 " + (i + 1) + " 行的數值有誤，請檢查。");
+                    return;
+                }
+                points.push([lat, lng]);
+            }
+
+            if (points.length < 3) {
+                alert("至少需要輸入 3 個點才能繪製多邊形。");
+                return;
+            }
+
+            clearAll();
+
+            var polygon = L.polygon(points, { color: "#e74c3c", weight: 2, fillOpacity: 0.2 });
+            drawnItems.addLayer(polygon);
+
+            map.fitBounds(polygon.getBounds());
+
+            calculateArea(polygon.toGeoJSON());
+        }
+
+        function calculateArea(geojson) {
+            var area = turf.area(geojson);
+            document.getElementById('areaDisplay').innerText = Math.round(area * 100) / 100;
+        }
+
+        function clearAll() {
+            drawnItems.clearLayers();
+            document.getElementById('areaDisplay').innerText = "0";
+        }
+
+        function panToCenter() {
+            var raw = document.getElementById('centerInput').value;
+            var parts = raw.split(',');
+
+            if (parts.length === 2) {
+                var lat = parseFloat(parts[0].trim());
+                var lng = parseFloat(parts[1].trim());
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    map.flyTo([lat, lng], 14);
+                } else {
+                    alert("中心點座標數值錯誤");
+                }
+            } else {
+                alert("中心點格式錯誤，請使用: lat, lng");
+            }
+        }
+
+    </script>
+</body>
+
+</html>
